@@ -1,0 +1,17 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: blue-net
+spec:
+  config: '{
+    "cniVersion":"0.4.0",
+    "name": "blue-net",
+    "type": "platter",
+    "args": {
+      "applyGroups":"evpn-type5",
+      "vxlanVNI":"10002",
+      "vrfName": "blue",
+      "vrfTarget": "11:11"
+    },
+    "kubeConfig":"/etc/kubernetes/kubelet.conf"
+  }'

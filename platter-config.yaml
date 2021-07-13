@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platter-config
+  namespace: kube-system
+data:
+  # cRPD base config loaded during CNI installation
+  crpd-config.tmpl: |
+    system {
+        root-authentication {
+                encrypted-password "{{.EncryptedPassword}}"; ## SECRET-DATA
+        }
+        {{if .LicenseKey}}
+        license {
+            keys {
+                 key "{{.LicenseKey}}";
+            }
+        }
+        {{end}}
+
+        services {
+            extension-service {
+                request-response {
+                    grpc {
+                        clear-text {
+                            address 127.0.0.2;
+                            port 50051;
+                        }
+                        skip-authentication;
+                    }
+                }
+            }
+        }
+        {{if .BGPListenPort}}
+        processes {
+                routing {
+                        bgp tcp-listen-port {{.BGPListenPort}};
+                }
+        }
+        {{end}}
+    }
+    {{if .ISOLoopbackAddr}}
+    interfaces {
+            lo {
+                    unit 0 {
+                            family iso {
+                                    address {{.ISOLoopbackAddr}}
+                            }
+                            family inet {
+                                    address {{.NodeIP}}/32;
+                            }
+                    }
+            }
+    }
+    {{end}}
+    routing-options {
+       {{if .IPv4LoopbackAddr}}
+       router-id {{.IPv4LoopbackAddr}}
+       route-distinguisher-id {{.IPv4LoopbackAddr}}
+       {{else}}
+       router-id {{.NodeIP}}
+       route-distinguisher-id {{.NodeIP}}
+       {{end}}
+       static {
+           route 0.0.0.0/0 next-hop {{.IPv4DefaultGw}};
+       }
+    }
+    protocols {
+        ospf {
+           area 0.0.0.0 {
+              interface all;
+              interface lo.0 {
+                 passive;
+              }
+           }
+        }
+        isis {
+           interface all;
+           source-packet-routing {
+               srgb start-label 400000 index-range 4000;
+               node-segment {
+                   ipv4-index {{.SRIPv4NodeIndex}};
+                   ipv6-index {{.SRIPv6NodeIndex}};
+               }
+           }
+           level 1 disable;
+        }
+        ldp {
+            interface all;
+        }
+        mpls {
+            interface all;
+        }
+    }
+    {{if .IsMasterNode}}
+    protocols {
+        bgp {
+            group CNI {
+                {{ if .BGPConnectPort}}
+                tcp-connect-port {{.BGPConnectPort}};
+                {{end}}
+                type internal;
+                {{if .IPv4LoopbackAddr}}
+                local-address {{.IPv4LoopbackAddr}};
+                cluster {{.IPv4LoopbackAddr}};
+                {{else}}
+                local-address {{.NodeIP}};
+                cluster {{.NodeIP}};
+                {{end}}
+                local-as {{.LocalAS}};
+                allow 0.0.0.0/0;
+                family inet-vpn {
+                    unicast;
+                }
+                family inet6-vpn {
+                    unicast;
+                }
+                family evpn {
+                    signaling;
+                }
+            }
+        }
+    }
+    {{else}}
+    policy-options {
+        policy-statement DIRECT {
+            from {
+                family inet;
+                protocol direct;
+            }
+            then accept;
+        }
+    }
+    protocols {
+        bgp {
+            group CNI {
+                type internal;
+                {{if .IPv4LoopbackAddr}}
+                local-address {{.IPv4LoopbackAddr}};
+                {{else}}
+                local-address {{.NodeIP}};
+                {{end}}
+                inactive: export DIRECT;
+                local-as {{.LocalAS}};
+                neighbor 10.10.58.82;
+                family inet-vpn {
+                    unicast;
+                }
+                family inet6-vpn {
+                    unicast;
+                }
+                family evpn {
+                    signaling;
+                }
+            }
+        }
+    }
+    groups {
+        evpn-type5 {
+            routing-instances {
+                 <*> {
+                     vrf-table-label;
+                     protocols {
+                         evpn {
+                             ip-prefix-routes {
+                                 advertise direct-nexthop;
+                             }
+                         }
+                     }
+                 }
+            }
+        }
+    }
+    {{end}}
+

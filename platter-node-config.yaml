@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platter-node-config
+  namespace: kube-system
+data:
+  node-ip-10-10-58-82.us-west-1.compute.internal.json: |
+    {
+      "ipv4LoopbackAddr":"10.10.58.82",
+      "ipv6LoopbackAddr":"abcd::10.10.58.82",
+      "isoLoopbackAddr":"49.0004.1000.0000.0000.00",
+      "srIPv4NodeIndex":"2000",
+      "srIPv6NodeIndex":"3000"
+    }
+  node-ip-10-10-59-222.us-west-1.compute.internal.json: |
+    {
+      "ipv4LoopbackAddr":"10.10.59.222",
+      "ipv6LoopbackAddr":"abcd::10.10.59.222",
+      "isoLoopbackAddr":"49.0004.1000.0000.0001.00",
+      "srIPv4NodeIndex":"2001",
+      "srIPv6NodeIndex":"3001"
+    }
+  node-ip-10-10-67-178.us-west-1.compute.internal.json: |
+    {
+      "ipv4LoopbackAddr":"10.10.67.178",
+      "ipv6LoopbackAddr":"abcd::10.10.67.178",
+      "isoLoopbackAddr":"49.0004.1000.0000.0002.00",
+      "srIPv4NodeIndex":"2002",
+      "srIPv6NodeIndex":"3002"
+    }

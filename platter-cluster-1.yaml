@@ -1,0 +1,294 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: crpd
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - list
+      - watch
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: crpd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crpd
+subjects:
+- kind: ServiceAccount
+  name: crpd
+  namespace: kube-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crpd
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-crpd-worker-ds
+  namespace: kube-system
+  labels:
+    k8s-app: kube-crpd-worker
+spec:
+  selector:
+    matchLabels:
+      name: kube-crpd-worker-ds
+  template:
+    metadata:
+      labels:
+        name: kube-crpd-worker-ds
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                      - arm64
+                  - key: "node-role.kubernetes.io/master"
+                    operator: DoesNotExist
+      hostNetwork: true
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      initContainers:
+        - name: install-cni
+          image: 855275951286.dkr.ecr.us-west-1.amazonaws.com/platter:latest
+          volumeMounts:
+          - name: cni
+            mountPath: /host
+          - name: platter-config
+            mountPath: /etc/platter
+          - name: node-config
+            mountPath: /etc/platter-node-config
+          - name: secrets
+            mountPath: /etc/secrets
+          securityContext:
+            privileged: true 
+            capabilities:
+              add: 
+                - NET_ADMIN
+                - NET_RAW
+                - SYS_ADMIN
+          env:
+          - name: NODE_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          - name: IS_MASTER
+            value: "False"
+          - name: CRPD_CONFIG_TEMPLATE
+            value: "/etc/platter/crpd-config.tmpl"
+          - name: PRIMARY_CNI
+            value: "False"
+      containers:
+        - name: kube-crpd-worker
+          image: 855275951286.dkr.ecr.us-west-1.amazonaws.com/crpd:21.3I20210427_1631
+          volumeMounts:
+            - name: conf
+              mountPath: /config
+            - name: cni
+              mountPath: /host
+            - name: secrets
+              mountPath: /etc/secrets
+          securityContext:
+            privileged: true 
+            capabilities:
+              add:
+                - NET_ADMIN
+                - SYS_ADMIN
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: IS_MASTER
+              value: "False"
+          startupProbe:
+            exec:
+              command:
+              - /config/scripts/health-check.sh
+              - --startup
+              # Enable one or more below options
+              # depending on the deployment scenario
+              # - --bgp
+              # - --ldp
+              # - --mpls
+              # - --ospf
+              # - --isis
+              # - --vrouter
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+              - /config/scripts/health-check.sh
+              - --liveness
+              # Enable one or more below options
+              # depending on the deployment scenario
+              # - --bgp
+              # - --ldp
+              # - --mpls
+              # - --ospf
+              # - --isis
+              # - --vrouter
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: cni
+          hostPath:
+            path: /
+        - name: conf
+          hostPath:
+            path: /etc/crpd
+        - name: platter-config
+          configMap:
+            name: platter-config
+        - name: node-config
+          configMap:
+            name: platter-node-config
+        - name: secrets
+          secret:
+            secretName: platter-secrets
+      serviceAccountName: crpd
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-crpd-master-ds
+  namespace: kube-system
+  labels:
+    k8s-app: kube-crpd-master
+spec:
+  selector:
+    matchLabels:
+      name: kube-crpd-master-ds
+  template:
+    metadata:
+      labels:
+        name: kube-crpd-master-ds
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
+      hostNetwork: true
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoSchedule
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+      initContainers:
+        - name: install-cni
+          image: 855275951286.dkr.ecr.us-west-1.amazonaws.com/platter:latest
+          volumeMounts:
+          - name: cni
+            mountPath: /host
+          - name: platter-config
+            mountPath: /etc/platter
+          - name: node-config
+            mountPath: /etc/platter-node-config
+          - name: secrets
+            mountPath: /etc/secrets
+          securityContext:
+            privileged: true 
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: IS_MASTER
+              value: "True"
+            - name: CRPD_CONFIG_TEMPLATE
+              value: "/etc/platter/crpd-config.tmpl"
+            - name: PRIMARY_CNI
+              value: "False"
+      containers:
+        - name: kube-crpd-master
+          image: 855275951286.dkr.ecr.us-west-1.amazonaws.com/crpd:21.3I20210427_1631
+          volumeMounts:
+            - name: conf
+              mountPath: /config
+          securityContext:
+            privileged: true 
+            capabilities:
+              add: ["NET_ADMIN"]
+          env:
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: IS_MASTER
+              value: "True"
+          startupProbe:
+            exec:
+              command:
+              - /config/scripts/health-check.sh
+              - --startup
+              # Enable one or more below options
+              # depending on the deployment scenario
+              # - --bgp
+              # - --ldp
+              # - --mpls
+              # - --ospf
+              # - --isis
+              # - --vrouter
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+              - /config/scripts/health-check.sh
+              - --liveness
+              # Enable one or more below options
+              # depending on the deployment scenario
+              # - --bgp
+              # - --ldp
+              # - --mpls
+              # - --ospf
+              # - --isis
+              # - --vrouter
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: cni
+          hostPath:
+            path: /
+        - name: conf
+          hostPath:
+            path: /etc/crpd
+        - name: platter-config
+          configMap:
+            name: platter-config
+        - name: node-config
+          configMap:
+            name: platter-node-config
+        - name: secrets
+          secret:
+            secretName: platter-secrets
+      serviceAccountName: crpd
