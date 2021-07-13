@@ -57,3 +57,14 @@ Run eksctl to create the cluster
 eksctl create cluster -f  small-eks-us-west-1.yaml
 eksctl create cluster -f  small-eks-us-west-2.yaml
 ```
+Run deploy-platter.sh (should have all the logic to deploy platter over the two clusters created above)
+```
+sh ./deploy-platter.sh 
+```
+Deploy pods
+```
+sh ./deploy-overlay-demo.sh 
+```
+
+
+
