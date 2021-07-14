@@ -2,12 +2,15 @@
 echo "fixing SNAT for 1.1/16 in us-west-1..."
 
 kubectl config use-context   dsundarraj@small-us-west-1.us-west-1.eksctl.io
-kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXCLUDE_SNAT_CIDRS=1.1.0.0/16
+kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXCLUDE_SNAT_CIDRS=1.0.0.0/8
+kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXTERNALSNAT=true
 
 echo "fixing SNAT for 1.2/16 in us-west-2..."
 
 kubectl config use-context   dsundarraj@small-us-west-2.us-west-2.eksctl.io
-kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXCLUDE_SNAT_CIDRS=1.2.0.0/16
+kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXCLUDE_SNAT_CIDRS=1.0.0.0/8
+kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXTERNALSNAT=t
+rue
 
 echo "Disabling source-dest-check on us-west-1..."
 
