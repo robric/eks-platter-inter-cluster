@@ -27,18 +27,16 @@ Platter is deployed on each cluster, with a master (i.e. route-reflector)/worker
 
 After this infrastructure is deployed, it is possible to launch pods in each cluster and provide secured and seamless connectivity connectivity between pods over VXLAN. From a forwarding standpoint, the VPCs are the underlay supporting the VXLAN overlay in which pod traffic is propagated.
 
-![image](https://user-images.githubusercontent.com/21667569/129238762-ac015097-51a7-4c69-8aeb-628fa95d7115.png)
+![image](https://user-images.githubusercontent.com/21667569/129240370-bbe97810-ce39-490f-afa4-9942ce8a2c4c.png)
 
-This permits to connect VNFs in VRFs for isolation (green VRF vs red VRF). The VRF is controlled via kubernetees custom ressources (network attachment definition).
+This permits to connect cNFs in VRFs for isolation (green VRF vs red VRF). The attachment of the pods to the VRF is done via kubernetees thanks to the "network attachment definition" Custom ressource.
 
-TBD ???
+![image](https://user-images.githubusercontent.com/21667569/129240654-c32203bb-762d-4e3b-b814-06805a81b76c.png)
 
-So far:
-- manual peering is required to connect both clusters via MP-BGP at RR level
-- Only VXLAN is supported 
-- kernel forwarding (issues requiring rpd restart)
-
-*TBD - so far this installation requires a manual configuration of cRPD RR for the inter-cluster peering (see the detailed step-by-step guide) * 
+Footnotes
+- Manual BGP peering is required to connect both clusters via MP-BGP at RR level
+- Only VXLAN is supported for this proof of concept. MPLSoUDP or SRv6 are good candidate for future alternative overlays.
+- The forwarding is based on native kernel linux
 
 # Step by Step
 
