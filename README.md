@@ -207,12 +207,144 @@ PING 10.20.9.206 (10.20.9.206) 56(84) bytes of data.
 64 bytes from 10.20.9.206: icmp_seq=2 ttl=255 time=20.9 ms
 64 bytes from 10.20.9.206: icmp_seq=3 ttl=255 time=20.8 ms
 ```
+## Create inter-cluster BGP peering (manual step)
 
-Deploy pods
+So far, the inter-cluster BGP peering must be define manually.
+For this purpose,
+* Capture the crpd master IP addresses (see the previous step with the ping test so get the IP) and add the matching configuration on each node.
+* Load the appropriate configuration in JUNOS \[edit protocols bgp] on each master node based on the following template
+
 ```
-sh ./deploy-overlay-demo.sh 
+group inter-cluster {
+    type internal;
+    local-address LocalcrpdMasterPodIPAddress;
+    family inet-vpn {
+        unicast;
+    }
+    family inet6-vpn {
+        unicast;
+    }
+    family evpn {
+        signaling;
+    }
+    local-as 64512;
+    neighbor RemotecrpdMasterPodIPAddress;
+}
+```
+Or more concretely follow this example
 ```
 
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl get pods -o wide -n kube-system | grep master 
+kube-crpd-master-ds-2v7s9   1/1     Running   0          17h   10.10.25.42    ip-10-10-25-42.us-west-1.compute.internal    <none>           <none>
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl exec -it kube-crpd-master-ds-2v7s9  -n kube-system -- cli
+Defaulted container "kube-crpd-master" out of: kube-crpd-master, install-cni (init)
+root@ip-10-10-25-42.us-west-1.compute.internal> configure 
+Entering configuration mode
+
+[edit]
+root@ip-10-10-25-42.us-west-1.compute.internal# edit protocols bgp 
+
+[edit protocols bgp]
+root@ip-10-10-25-42.us-west-1.compute.internal# load merge terminal relative 
+[Type ^D at a new line to end input]
+group inter-cluster {
+    type internal;
+    local-address 10.10.25.42;
+    family inet-vpn {
+        unicast;
+    }
+    family inet6-vpn {
+        unicast;
+    }
+    family evpn {
+        signaling;
+    }
+    local-as 64512;
+    neighbor 10.20.63.45;
+}
+load complete
+
+[edit protocols bgp]
+root@ip-10-10-25-42.us-west-1.compute.internal# commit 
+commit complete
+
+[edit protocols bgp]
+root@ip-10-10-25-42.us-west-1.compute.internal# exit 
+[...]
+ubuntu@master:~/eks-platter-inter-cluster$  kubectl config use-context   dsundarraj@small-us-west-2.us-west-2.eksctl.io
+Switched to context "dsundarraj@small-us-west-2.us-west-2.eksctl.io".
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl get pods -o wide -n kube-system | grep master 
+kube-crpd-master-ds-vzbjk   1/1     Running   0          17h   10.20.63.45    ip-10-20-63-45.us-west-2.compute.internal   <none>           <none>
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl exec -it kube-crpd-master-ds-vzbjk -n kube-system -- cli
+Defaulted container "kube-crpd-master" out of: kube-crpd-master, install-cni (init)
+root@ip-10-20-63-45.us-west-2.compute.internal> configure 
+Entering configuration mode
+
+[edit]
+root@ip-10-20-63-45.us-west-2.compute.internal# edit protocols bgp 
+
+[edit protocols bgp]
+root@ip-10-20-63-45.us-west-2.compute.internal# load merge terminal relative 
+[Type ^D at a new line to end input]
+group inter-cluster {
+    type internal;
+    local-address 10.20.63.45;
+    family inet-vpn {
+        unicast;
+    }
+    family inet6-vpn {
+        unicast;
+    }
+    family evpn {
+        signaling;
+    }
+    local-as 64512;
+    neighbor 10.10.25.42;
+}
+load complete
+
+[edit protocols bgp]
+root@ip-10-20-63-45.us-west-2.compute.internal# commit 
+commit complete
+
+[edit protocols bgp]
+```
+Verification - make sure the inter-cluster BGP peer is in the "Established" state
+```
+root@ip-10-20-63-45.us-west-2.compute.internal# run show bgp summary    
+Threading mode: BGP I/O
+Default eBGP mode: advertise - accept, receive - accept
+Groups: 2 Peers: 3 Down peers: 0
+Unconfigured peers: 2
+Table          Tot Paths  Act Paths Suppressed    History Damp State    Pending
+bgp.l3vpn.0          
+                       0          0          0          0          0          0
+bgp.l3vpn-inet6.0    
+                       0          0          0          0          0          0
+bgp.evpn.0           
+                       0          0          0          0          0          0
+Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn State|#Active/Received/Accepted/Damped...
+10.10.25.42           64512          5          4       0       0           6 Establ
+  bgp.l3vpn.0: 0/0/0/0
+  bgp.l3vpn-inet6.0: 0/0/0/0
+  bgp.evpn.0: 0/0/0/0
+```
+Now you're good to start playing with advanced pod networking !
+
+## POD deployment
+
+Launch a single pod in each cluster/region. The manifests will the following pods with IP in VRF blue-net
+* 1.1.1.2/32 for pod alpine-cluster-1 in us-west-1 
+* 1.2.2.2/32 for pod alpine-cluster-2 in us-west-2
+
+```
+ kubectl config use-context dsundarraj@small-us-west-1.us-west-1.eksctl.io
+ kubectl apply -f alpine-cluster-1.yaml
+ kubectl config use-context dsundarraj@small-us-west-2.us-west-2.eksctl.io
+ kubectl apply -f alpine-cluster-2.yaml
+```
+Check the status of the pod and launch 
+```
 
 
 
