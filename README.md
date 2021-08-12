@@ -114,7 +114,7 @@ eksctl create cluster -f  small-eks-us-west-2.yaml
 
 ## Deploy the platter CNI
 
-Run the "deploy-platter.sh" script. It has all the logic to deploy platter over the two clusters created above. This script is actually a wrapper that calls several other scripts.
+Run the "deploy-platter.sh" script. It has all the logic to deploy platter over the two clusters created above. This script is actually a wrapper that calls several scripts.
 
 ```
 sh ./deploy-platter.sh 
@@ -172,6 +172,42 @@ Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn St
   bgp.l3vpn-inet6.0: 0/0/0/0
   bgp.evpn.0: 0/0/0/0
 ```
+## Interconnect the EKS clusters
+
+To interconnect the VPC clusters, execute the following script.
+
+```
+sh ./create-vpc-peering.sh 
+```
+
+You can validate that VPC interconnection by pinging from a crpd instance of a region/cluster to another crpd instance in the peer cluster.
+You may get pod private IPs thanks to "kubectl get pods -o wide" and switch context thanks to the "kubectl config use-context" command as per the below trace.  
+
+```
+#### Get the cRPD pod IPs - we can notice we're in the us-west-2 context thanks to the IP range (10.20).  
+
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl get pods -A -o wide | grep crpd
+kube-system   kube-crpd-master-ds-vzbjk   1/1     Running   0          17h   10.20.63.45    ip-10-20-63-45.us-west-2.compute.internal   <none>           <none>
+kube-system   kube-crpd-worker-ds-hpdx8   1/1     Running   0          17h   10.20.9.206    ip-10-20-9-206.us-west-2.compute.internal   <none>           <none>
+kube-system   kube-crpd-worker-ds-nw4zb   1/1     Running   0          17h   10.20.68.97    ip-10-20-68-97.us-west-2.compute.internal   <none>           <none>
+
+
+#### Switch  kubectl context and ping from a worker in us-west-1 to a worker in us-west-2
+
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl config use-context dsundarraj@small-us-west-1.us-west-1.eksctl.io
+Switched to context "dsundarraj@small-us-west-1.us-west-1.eksctl.io".
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl get pods -A -o wide | grep crpd
+kube-system   kube-crpd-master-ds-2v7s9   1/1     Running   0          17h   10.10.25.42    ip-10-10-25-42.us-west-1.compute.internal    <none>           <none>
+kube-system   kube-crpd-worker-ds-bkl6q   1/1     Running   0          17h   10.10.93.12    ip-10-10-93-12.us-west-1.compute.internal    <none>           <none>
+kube-system   kube-crpd-worker-ds-fmf9b   1/1     Running   0          17h   10.10.29.243   ip-10-10-29-243.us-west-1.compute.internal   <none>           <none>
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl exec -it kube-crpd-worker-ds-bkl6q -n kube-system -- ping  10.20.9.206 
+Defaulted container "kube-crpd-worker" out of: kube-crpd-worker, install-cni (init)
+PING 10.20.9.206 (10.20.9.206) 56(84) bytes of data.
+64 bytes from 10.20.9.206: icmp_seq=1 ttl=255 time=20.9 ms
+64 bytes from 10.20.9.206: icmp_seq=2 ttl=255 time=20.9 ms
+64 bytes from 10.20.9.206: icmp_seq=3 ttl=255 time=20.8 ms
+```
+
 Deploy pods
 ```
 sh ./deploy-overlay-demo.sh 
