@@ -2,11 +2,12 @@
 
 ## Sources
 
-Extensively derived from marcel's work
+Derived from Marcel's work on platter deployment over EKS
 https://ssd-git.juniper.net/rpd/platter/-/blob/eks/eks/
 
 ## Prerequisites
 
+On a deployer node, install the following tooling:
 - Install aws cli
 - Install eksctl
 - Install jq
@@ -14,9 +15,8 @@ https://ssd-git.juniper.net/rpd/platter/-/blob/eks/eks/
 
 ## Short story
 
-Deployment of platter on two different EKS clusters running in two regions us-west-1 and us-west-2. 
+The objective is to deploy the platter CNI (cRPD based) on two different EKS clusters running in two distinct AWS regions us-west-1 and us-west-2. 
 AWS VPC peering is enforced to connect the underlying VPCs on which EKS clusters are deployed. 
-This all starts with two ekstctl command to create clusters.
 
 ![image](https://user-images.githubusercontent.com/21667569/125673627-3a7e27a5-ee69-44f0-a8b2-1d60bd33e361.png)
 
