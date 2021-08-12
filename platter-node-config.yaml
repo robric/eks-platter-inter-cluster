@@ -4,26 +4,26 @@ metadata:
   name: platter-node-config
   namespace: kube-system
 data:
-  node-ip-10-10-58-82.us-west-1.compute.internal.json: |
+  node-ip-10-20-63-45.us-west-2.compute.internal.json: |
     {
-      "ipv4LoopbackAddr":"10.10.58.82",
-      "ipv6LoopbackAddr":"abcd::10.10.58.82",
+      "ipv4LoopbackAddr":"10.20.63.45",
+      "ipv6LoopbackAddr":"abcd::10.20.63.45",
       "isoLoopbackAddr":"49.0004.1000.0000.0000.00",
       "srIPv4NodeIndex":"2000",
       "srIPv6NodeIndex":"3000"
     }
-  node-ip-10-10-59-222.us-west-1.compute.internal.json: |
+  node-ip-10-20-68-97.us-west-2.compute.internal.json: |
     {
-      "ipv4LoopbackAddr":"10.10.59.222",
-      "ipv6LoopbackAddr":"abcd::10.10.59.222",
+      "ipv4LoopbackAddr":"10.20.68.97",
+      "ipv6LoopbackAddr":"abcd::10.20.68.97",
       "isoLoopbackAddr":"49.0004.1000.0000.0001.00",
       "srIPv4NodeIndex":"2001",
       "srIPv6NodeIndex":"3001"
     }
-  node-ip-10-10-67-178.us-west-1.compute.internal.json: |
+  node-ip-10-20-9-206.us-west-2.compute.internal.json: |
     {
-      "ipv4LoopbackAddr":"10.10.67.178",
-      "ipv6LoopbackAddr":"abcd::10.10.67.178",
+      "ipv4LoopbackAddr":"10.20.9.206",
+      "ipv6LoopbackAddr":"abcd::10.20.9.206",
       "isoLoopbackAddr":"49.0004.1000.0000.0002.00",
       "srIPv4NodeIndex":"2002",
       "srIPv6NodeIndex":"3002"

@@ -142,7 +142,7 @@ data:
                 {{end}}
                 inactive: export DIRECT;
                 local-as {{.LocalAS}};
-                neighbor 10.10.58.82;
+                neighbor 10.20.63.45;
                 family inet-vpn {
                     unicast;
                 }
