@@ -28,46 +28,7 @@ So far:
 
 ![image](https://user-images.githubusercontent.com/21667569/125674512-7cfaec61-6e57-4a7c-afa9-ca272a3c94b1.png)
 
-Here is an example of the manual inter-cluster peering (push appropriate IPs instead) that requires automation (next stages).
-
-```
-##### RR us-west-1 (VPC has 10.10/16 CIDR)
-
-group inter-cluster {
-    type internal;
-    local-address 10.10.58.82;
-    family inet-vpn {
-        unicast;
-    }
-    family inet6-vpn {
-        unicast;
-    }
-    family evpn {
-        signaling;
-    }
-    local-as 64512;
-    neighbor 10.20.20.100;
-}
-
-##### RR us-west-2 (VPC has 10.20/16 CIDR)
-
-group inter-cluster {
-    type internal;
-    local-address 10.20.20.100;
-    family inet-vpn {
-        unicast;
-    }
-    family inet6-vpn {
-        unicast;
-    }
-    family evpn {
-        signaling;
-    }
-    local-as 64512;
-    neighbor 10.10.58.82;
-}
-```
-
+*TBD - so far this installation requires a manual configuration of cRPD RR for the inter-cluster peering (see the detailed step-by-step guide) * 
 
 # Step by Step
 
