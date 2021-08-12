@@ -2,7 +2,7 @@
 
 ## Sources
 
-Derived from Marcel's work on platter deployment over EKS
+Marcel's work on platter deployment over EKS
 https://ssd-git.juniper.net/rpd/platter/-/blob/eks/eks/
 
 ## Prerequisites
@@ -16,17 +16,27 @@ On a deployer node, install the following tooling:
 ## Short story
 
 The objective is to deploy the platter CNI (cRPD based) on two different EKS clusters running in two distinct AWS regions us-west-1 and us-west-2. 
-AWS VPC peering is enforced to connect the underlying VPCs on which EKS clusters are deployed. 
+
+The aws "VPC peering" logic is enforced to connect the underlying VPCs on which the EKS clusters are deployed. This permits to non-NAT L3-connectivity between the EKS clusters.
 
 ![image](https://user-images.githubusercontent.com/21667569/125673627-3a7e27a5-ee69-44f0-a8b2-1d60bd33e361.png)
 
-Next platter is deployed on both clusters.
-So far:
-- manual peering is required to connect both clusters via MP-BGP at RR level
-- only VXLAN is supported 
-- kernel forwarding (issues requiring rpd restart)
+Platter is deployed on each cluster, with a master (i.e. route-reflector)/worker pattern. An inter-cluster MP-BGP peering is established between master to synchronize the overlay routing between clusters.
 
 ![image](https://user-images.githubusercontent.com/21667569/125674512-7cfaec61-6e57-4a7c-afa9-ca272a3c94b1.png)
+
+After this infrastructure is deployed, it is possible to launch pods in each cluster and provide secured and seamless connectivity connectivity between pods over VXLAN. From a forwarding standpoint, the VPCs are the underlay supporting the VXLAN overlay in which pod traffic is propagated.
+
+![image](https://user-images.githubusercontent.com/21667569/129238762-ac015097-51a7-4c69-8aeb-628fa95d7115.png)
+
+This permits to connect VNFs in VRFs for isolation (green VRF vs red VRF). The VRF is controlled via kubernetees custom ressources (network attachment definition).
+
+TBD ???
+
+So far:
+- manual peering is required to connect both clusters via MP-BGP at RR level
+- Only VXLAN is supported 
+- kernel forwarding (issues requiring rpd restart)
 
 *TBD - so far this installation requires a manual configuration of cRPD RR for the inter-cluster peering (see the detailed step-by-step guide) * 
 
