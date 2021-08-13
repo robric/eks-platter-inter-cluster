@@ -143,7 +143,10 @@ Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn St
 ```
 ## Interconnect the EKS clusters
 
-To interconnect the VPC clusters, execute the following script.
+To interconnect the VPC clusters, execute the following script. It is made up on a sequence of aws API calls that will configure the following items
+- VPC peering (request and accept)
+- update route-table for inter-VPC routing
+- update security-group for more permissiveness
 
 ```
 sh ./create-vpc-peering.sh 
@@ -200,7 +203,7 @@ group inter-cluster {
     neighbor RemotecrpdMasterPodIPAddress;
 }
 ```
-Or more concretely follow this example
+Or, if you want it more follow this example
 ```
 
 ubuntu@master:~/eks-platter-inter-cluster$ kubectl get pods -o wide -n kube-system | grep master 
@@ -300,18 +303,108 @@ Peer                     AS      InPkt     OutPkt    OutQ   Flaps Last Up/Dwn St
 ```
 Now you're good to start playing with advanced pod networking !
 
-## POD deployment
+## Overlay and POD deployment
 
-Launch a single pod in each cluster/region. The manifests will the following pods with IP in VRF blue-net
-* 1.1.1.2/32 for pod alpine-cluster-1 in us-west-1 
-* 1.2.2.2/32 for pod alpine-cluster-2 in us-west-2
+The following diagram represents the deployment: it is made up of a single VRF (bound to a kubernetees network attachment definition) and a single pod in each cluster (alpine Linux).
+
+![image](https://user-images.githubusercontent.com/21667569/129390119-6d9fb425-188d-4670-b0ba-65dc799aee08.png)
+ 
+ The below manifests will bring-up the following logic:
+* platter-nad-blue-evpn.yaml: defines of the blue-net VRF as a kubernetees "network-attachment-definition" ressource.
+* alpine-cluster-1.yaml: Alpine Linux container running in pod alpine-cluster-1 with IP 1.1.1.2/32 in blue-net VRF for us-west-1 
+* alpine-cluster-2.yaml: Alpine Linux container running in pod alpine-cluster-2 with IP 1.2.2.2/32 in blue-net VRF for us-west-2
+
+The "deploy-overlay-demo.sh" script automates the manifest application.
+```
+ubuntu@master:~/eks-platter-inter-cluster$ sh ./deploy-overlay-demo.sh 
+ubuntu@master:~/eks-platter-inter-cluster$ cat deploy-overlay-demo.sh 
+#!/bin/bash
+
+kubectl config use-context   dsundarraj@small-us-west-1.us-west-1.eksctl.io
+kubectl apply -f platter-nad-blue-evpn.yaml
+kubectl apply -f alpine-cluster-1.yaml
+
+kubectl config use-context   dsundarraj@small-us-west-2.us-west-2.eksctl.io
+kubectl apply -f platter-nad-blue-evpn.yaml
+kubectl apply -f alpine-cluster-2.yaml
+```
+For quick access, the content of these manifests is provided here.
+Definition of the NetworkAttachmentDefinition for the blue-net VRF with the appropriate route-target and VNI.
 
 ```
- kubectl config use-context dsundarraj@small-us-west-1.us-west-1.eksctl.io
- kubectl apply -f alpine-cluster-1.yaml
- kubectl config use-context dsundarraj@small-us-west-2.us-west-2.eksctl.io
- kubectl apply -f alpine-cluster-2.yaml
+ubuntu@master:~/eks-platter-inter-cluster$ cat platter-nad-blue-evpn.yaml
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: blue-net
+spec:
+  config: '{
+    "cniVersion":"0.4.0",
+    "name": "blue-net",
+    "type": "platter",
+    "args": {
+      "applyGroups":"evpn-type5",
+      "vxlanVNI":"10002",
+      "vrfName": "blue",
+      "vrfTarget": "11:11"
+    },
+    "kubeConfig":"/etc/kubernetes/kubelet.conf"
+  }'
+ubuntu@master:~/eks-platter-inter-cluster$ kubectl get net-attach-def
+NAME       AGE
+blue-net   43h
 ```
+Example of pod with reference to the blue-net network attachment definition. Note that pod are created with remote routes as well to inter-cluster routing via the platter CNI logic.
+```
+ubuntu@master:~/eks-platter-inter-cluster$ cat alpine-cluster-1.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name:   alpine-cluster-1
+  annotations:
+    k8s.v1.cni.cncf.io/networks: |
+      [
+        {
+          "name": "blue-net",
+          "interface":"net1",
+          "cni-args": {
+            "mac":"aa:bb:cc:dd:01:01",
+            "dataplane":"linux",
+            "ipConfig":{
+              "ipv4":{
+                "address":"1.1.1.2/30",
+                "gateway":"1.1.1.1",
+                "routes":[
+                  "1.1.0.0/16","1.2.0.0/16"
+                ]
+              },
+              "ipv6":{
+                "address":"abcd::1.1.1.2/126",
+                "gateway":"abcd::1.1.1.1",
+                "routes":[
+                  "abcd::1.1.0.0/112"
+                ]
+              }
+            }
+          }
+        }
+      ]
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-role.kubernetes.io/master
+              operator: NotIn
+              values:
+                - master
+  containers:
+    - name: alpine-cluster-1
+[...]
+
+```
+
 Check the status of the pod and launch 
 ```
 
