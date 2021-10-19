@@ -87,9 +87,19 @@ REPOSITORY                                             TAG                  IMAG
 
 ### refresh credentials (remove .docker/config.json in root)
 
-ubuntu@master:~$ aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin ########AWS_ID######.dkr.ecr.us-west-1.amazonaws.com
+ubuntu@master:~$ aws ecr get-login-password --region us-west-1 | sudo docker login --username AWS --password-stdin ########AWS_ID######.dkr.ecr.us-west-1.amazonaws.com
+ubuntu@master:~$ sudo docker push 855275951286.dkr.ecr.us-west-1.amazonaws.com/crpd:latest
 
-### Edit platter-config.yaml and replace crpd tag with latest
+### Edit platter-config.yaml and replace crpd tag with latest 
+### re-apply manifest
+ubuntu@master:~$ kubectl apply -f platter-cluster-1.yaml 
+
+### Same in region us-west-2:
+
+aws ecr get-login-password --region us-west-2 | sudo docker login --username AWS --password-stdin ########AWS_ID######.dkr.ecr.us-west-2.amazonaws.com
+ecr_id=$(aws ecr describe-repositories --region us-west-2 --query "repositories[?repositoryName=='crpd'].repositoryUri" --output text)
+etc...
+
 ```
 
 ## Create two EKS clusters in two different regions
