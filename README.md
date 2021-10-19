@@ -73,6 +73,25 @@ do
 
 done
 ```
+
+[UPDATE - and more efficient use of API filters -]
+
+update crpd image
+```console
+sudo docker image load -i crpd-21.4I-20210918.docker.gz
+ecr_id=$(aws ecr describe-repositories --region us-west-1 --query "repositories[?repositoryName=='crpd'].repositoryUri" --output text)
+ubuntu@master:~$ sudo docker tag crpd:latest $ecr_id:latest
+ubuntu@master:~$ sudo docker image list
+REPOSITORY                                             TAG                  IMAGE ID       CREATED        SIZE
+855275951286.dkr.ecr.us-west-1.amazonaws.com/crpd      latest               062dbe3a8fdf   12 days ago    345MB
+
+### refresh credentials (remove .docker/config.json in root)
+
+ubuntu@master:~$ aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin ########AWS_ID######.dkr.ecr.us-west-1.amazonaws.com
+
+### Edit platter-config.yaml and replace crpd tag with latest
+```
+
 ## Create two EKS clusters in two different regions
 
 Run eksctl to create the cluster
