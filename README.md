@@ -437,5 +437,15 @@ spec:
 Check the status of the pod and launch 
 ```
 
+## EKS cleanup
 
+ECR is not charging (deletion not represented) 
 
+```
+vpc_peering_id=$(aws ec2 describe-vpc-peering-connections  --region us-west-1  --filter Name=tag:Name,Values=2eks-vpc-peer --query VpcPeeringConnections[*].VpcPeeringConnectionId --output text)
+aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id $vpc_peering_id
+eksctl delete cluster  small-us-west-2 --region us-west-2
+eksctl delete cluster  small-us-west-1 --region us-west-1
+```
+
+```
